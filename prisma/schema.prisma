@@ -1,0 +1,252 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// 소셜로그인 유저 정보
+// https://developers.kakao.com/docs/latest/ko/kakaologin/prerequisite
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    Int                    @id @default(autoincrement())
+  firstName             String
+  lastName              String?
+  userName              String                 @unique
+  email                 String                 @unique
+  password              String
+  gender                Boolean? // true > man false > woman
+  age                   Int? // 얘랑 밑에 합쳐서
+  birth                 Int? // Datetime 이 나을라나?
+  // 생일에 뭐 준다고 하고 이걸로 정보 얻으면 되겠네
+  bio                   String?
+  avatar                String?
+  // 게시물 필요 없으면 그냥 avatar 만
+  posts                 Post[]
+  postLikes             PostLike[]
+  commentLikes          commentLike[]
+  commentOfCommentLikes commentOfCommentLike[]
+  comments              Comment[]
+  commentOfComments     CommentOfComment[]
+  messages              Message[]
+  // rooms                 Room[]
+  // 관계로 대체
+
+
+
+  UserOnRoom UserOnRoom[] //@relation() onDelete Cascade 얘를 room 에도 구현
+
+
+
+
+  // followers following 헷갈리니까 이름을 바꿀까
+  followers User[]   @relation("FollowRelation", references: [id])
+  following User[]   @relation("FollowRelation", references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // 추가로 소셜로그인, 위치, 개인 커피숖, 펫 같은 데이터?
+  // latitude     String
+  // longitude    String
+  // address      String
+  // coffeeShops     CoffeeShop[]
+  // pats         Pat[]
+  // coffeeShops pats 같은거 쓸거면 아래에 model 따로 작성.
+
+  // notification 쓸거면 밑에랑 맨 아래 notification 전부
+  // notificationList 따로 쓸 필요는 없을 듯.
+  // UserNotificationList UserNotificationList[]
+  pubNotifications Notification[]
+  // 밑에는 하나 model 에 여러 User 관계 넣을 때. 지금은 생각해보니 굳이 필요 없을 듯.
+  // pubNotifications Notification[] @relation("publishUser")
+  // subNotifications Notification[] @relation("subscribeUser")
+
+  // 차단 유저 id 목록, relation 은 안해도 될듯?
+  blockUsers Int[]
+}
+
+model Post {
+  id            Int             @id @default(autoincrement())
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId        Int
+  likes         PostLike[]
+  file          String[] // 영상이거나 하면 확인
+  caption       String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  comments      Comment[]
+  // hashTags      HashTag[]
+  // 관계로 대체
+  PostOnHashTag PostOnHashTag[]
+}
+
+// 포스팅의 해시태그
+model HashTag {
+  id            Int             @id @default(autoincrement())
+  name          String          @unique
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  // posts         Post[]
+  // 관계로 대체
+  PostOnHashTag PostOnHashTag[]
+}
+
+// 포스팅의 좋아요
+// 근데 좋아요를 한 사람들을 보여줄게 아니면 그냥 포스트에 LikeUserIds 이런식으로 넣기만 해도 될듯.
+model PostLike {
+  id        Int      @id @default(autoincrement())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  postId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, userId])
+}
+
+// 포스팅의 댓글
+model Comment {
+  id               Int                @id @default(autoincrement())
+  payload          String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  post             Post               @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  userId           Int
+  postId           Int
+  commentLikes     commentLike[]
+  CommentOfComment CommentOfComment[]
+}
+
+// 포스팅의 댓글의 좋아요
+model commentLike {
+  id        Int      @id @default(autoincrement())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId    Int
+  commentId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([commentId, userId])
+}
+
+// 포스팅의 댓글의 댓글
+model CommentOfComment {
+  id                    Int                    @id @default(autoincrement())
+  payload               String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  comment               Comment                @relation(fields: [commentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  commentOfCommentLikes commentOfCommentLike[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  userId                Int
+  commentId             Int
+}
+
+// 포스팅의 댓글의 댓글의 좋아요
+model commentOfCommentLike {
+  id                 Int              @id @default(autoincrement())
+  commentOfComment   CommentOfComment @relation(fields: [commentOfCommentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId             Int
+  commentOfCommentId Int
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([commentOfCommentId, userId])
+}
+
+// 대화방
+model Room {
+  id         Int          @id @default(autoincrement())
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  messages   Message[]
+  // users         User[]
+  // 관계로 대체
+  UserOnRoom UserOnRoom[]
+}
+
+// 대화방의 메세지
+model Message {
+  id        Int      @id @default(autoincrement())
+  payload   String
+  // 방을 아예 나가면 혹은 유저 사라지면 어떻게 하지?
+  // onDelete > setNull, onUpdate >cascade, room 지우면.. 알아서 삭제되나?
+  user      User     @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  userId    Int
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  roomId    Int
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PostOnHashTag {
+  post      Post    @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  hashtag   HashTag @relation(fields: [hashtagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  postId    Int
+  hashtagId Int
+
+  @@id([postId, hashtagId])
+}
+
+model UserOnRoom {
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  userId Int
+  roomId Int
+  @@id([userId, roomId])
+}
+
+// post - hashtag, room - user 다대다 관계. 또 뭐있나
+// room - user 는 지울 필요 없..지 않군
+
+// 알림. 근데 UserNotificationList 를 궅이 쓸 필요가 있나 싶긴 함.
+
+// // 유저의 알림 목록. 필요 없을 듯. 안써
+// model UserNotificationList {
+//   id           Int            @id @default(autoincrement())
+//   // 근데 id 말고 user relation 인 userId 를 id 로 해도 되나? 아님 userId를 unique 로. unique 말고 autoincrement 아닌 id 로 하는게 나을듯
+//   user         User           @relation(fields: [userId], references: [id])
+//   notification Notification[]
+//   // notification 이 몇개 이상, 혹은 며칠 지나면 지우기
+//   userId       Int
+// }
+
+// 알림 내용
+model Notification {
+  id              Int               @id @default(autoincrement())
+  // 보낸 유저, 받는 유저 따로. 받는 유저는 없을 수도 있음
+  // 근데 받는 유저는 굳이 연결 안하고 id 만 있어도 되겠네.
+  publishUser     User              @relation(fields: [publishUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  // , name: "publishUser" 이거도 뺌. 위에 user 에도 바꿔
+  // 얘는 굳이 필요 없어
+  // subscribeUser   User?             @relation(fields: [subscribeUserId], references: [id], name: "subscribeUser")
+  publishUserId   Int
+  // following 유저가 포스팅 한거는 받는 유저가 정해져 있지 않아. 글고 만약에 알림에 포스팅 사진, 내용 같이 보여줄거면 이미지, 내용 요소도 추가
+  subscribeUserId Int?
+  // list                   UserNotificationList @relation(fields: [userNotificationListId], references: [id])
+  // userNotificationListId Int
+  which           WhichNotification // @default(FollowingPost)
+  read            Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  // updatedAt DateTime          @updatedAt
+}
+
+// 알림 종류. Following 한 사람이 Posting 했을 때, 내 게시물, 댓글, 대댓글에 좋아요 혹은 코멘트 달렸을 때. 누군가 나를 팔로우 할 때, 그 외에도 있으면 작성. 생일, 추천, 공유 등등
+enum WhichNotification {
+  FOLLOWING_WRITE_POST
+  MY_POST_GET_LIKE
+  MY_POST_GET_COMMENT
+  MY_COMMENT_GET_LIKE
+  MY_COMMENT_GET_COMMENT
+  MY_COMMENT_OF_COMMENT_GET_LIKE
+  FOLLOW_ME
+}

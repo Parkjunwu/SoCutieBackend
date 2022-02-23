@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "outDir": "./built",
+    "allowJs": true,
+    "target": "es5",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    // "esModuleInterop": false,
+    "skipLibCheck": true
+  },
+  "include": ["./src/**/*"],
+    "exclude": [
+      "node_modules"
+    ]
+}
