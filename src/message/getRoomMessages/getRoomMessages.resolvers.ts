@@ -19,6 +19,18 @@ const getRoomMessagesFn: Resolver = async(_,{roomId,cursorId},{client,loggedInUs
     where:{
       roomId,
     },
+    orderBy:{
+      createdAt:"desc",
+    },
+    include:{
+      user:{
+        select:{
+          id:true,
+          userName:true,
+          avatar:true,
+        }
+      }
+    },
     take:20,
     ...(cursorId && {cursor: cursorId, skip:1})
   })

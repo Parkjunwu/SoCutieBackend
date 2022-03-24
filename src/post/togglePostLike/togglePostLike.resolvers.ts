@@ -3,7 +3,7 @@ import { pushNotificationNotUploadPost } from "../../pushNotificationAndPublish"
 import { Resolver, Resolvers } from "../../types";
 import { protectResolver } from "../../user/user.utils";
 
-const toggleLikeFn:Resolver = async(_,{id},{client,loggedInUser}) => {
+const togglePostLikeFn:Resolver = async(_,{id},{client,loggedInUser}) => {
   const post = await client.post.count({
     where:{id},
   })
@@ -89,7 +89,7 @@ const toggleLikeFn:Resolver = async(_,{id},{client,loggedInUser}) => {
 
 const resolver:Resolvers = {
   Mutation:{
-    toggleLike:protectResolver(toggleLikeFn)
+    togglePostLike:protectResolver(togglePostLikeFn)
   }
 }
 export default resolver

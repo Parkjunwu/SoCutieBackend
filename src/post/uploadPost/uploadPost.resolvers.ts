@@ -3,20 +3,7 @@ import { Resolver, Resolvers } from "../../types";
 import { protectResolver } from "../../user/user.utils";
 import { processHashtags, S3_FOLDER_NAME } from "../post.utils";
 import { GraphQLUpload } from 'graphql-upload';
-// import pubsub, { NEW_NOTIFICATION } from "../../pubsub";
 import { pushNotificationUploadPost } from "../../pushNotificationAndPublish";
-
-// const { filename, createReadStream } = await file;
-// const uploadName = `${loggedInUser.id}-${Date.now()}-${filename}`
-// const write =  createWriteStream(`${process.cwd()}/uploads/${uploadName}`)
-// createReadStream().pipe(write)
-// const fileUrl = `http://localhost:4000/static/${uploadName}`;
-
-// const ok = await client.post.create({
-//   data:{user:loggedInUser,file:fileUrl,caption}
-// })
-// if(!ok) return {ok:false, error:"can't upload"}
-// return {ok:false}
 
 const uploadPostFn: Resolver = async(_,{photoArr,caption,},{client,loggedInUser}) => {
   
@@ -36,11 +23,10 @@ const uploadPostFn: Resolver = async(_,{photoArr,caption,},{client,loggedInUser}
       )
     } catch (e) {
       console.log(e);
-      console.log("uploadPost // 파일 삭제 에러");
-      return {ok:false, error:"Delete file Error"}
+      console.log("uploadPost // 파일 업로드 에러");
+      return {ok:false, error:"파일 업로드에 실패하였습니다."}
     }
-  }
-  // const fileUrl = await uploadToS3(file,loggedInUser.id,"upload")
+  };
   
   
   let hashTags = null;
@@ -73,51 +59,21 @@ const uploadPostFn: Resolver = async(_,{photoArr,caption,},{client,loggedInUser}
         //     }
         //   }
         // }]
-      }})
+      }}),
+    },
+    // 굳이 다 받을 필요 없으니 얘를 써도 됨. 나머지는 프론트엔드에서 캐시로 구현. 귀찮으면 그냥 전체 다 받음.
+    select:{
+      id:true,
+      createdAt:true,
     }
-  })
+  });
 
 
   // 완료 후 notification 전송 + subscription pubsub 전송
-  await pushNotificationUploadPost(client, loggedInUser.id)
-  // try {
-  //   // 완료 후 notification 전송 + subscription pubsub 전송
-  //   const notification = await client.notification.create({
-  //     data:{
-  //       which:"FOLLOWING_WRITE_POST",
-  //       publishUser:{
-  //         connect:{
-  //           id:loggedInUser.id
-  //         }
-  //       }
-  //     },
-  //     // include 안하면 안받아짐. 글고 몇개 안쓸 거니까 걔네만 받아
-  //     include:{
-  //       publishUser:{
-  //         // select 랑 include 같이 못씀.
-  //         select:{
-  //           id:true,
-  //           userName:true,
-  //           avatar:true,
-  //           followers:{
-  //             select:{
-  //               id:true
-  //             }
-  //           },
-  //         },
-  //       },
-  //     }
-  //   });
-  //   // console.log(JSON.stringify(notification));
-  //   // subscription 전송
-  //   await pubsub.publish(NEW_NOTIFICATION,{userNotificationUpdate:{...notification}})
-  // } catch (e) {
-  //   console.log(e);
-  //   console.log("notification, subscription 에서 문제 발생")
-  // }
+  await pushNotificationUploadPost(client, loggedInUser.id);
 
 
-  return result;
+  return { ok:true, uploadedPost:result };
 }
 
 const resolver:Resolvers = {

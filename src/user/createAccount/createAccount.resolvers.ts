@@ -10,13 +10,35 @@ const resolverFn: Resolvers = {
     ) => {
       try {
         // const checkUser = await client.user.findFirst({
-        const checkUser = await client.user.count({
+        const checkUserName = await client.user.findUnique({
           where: {
-            OR: [{ userName }, { email }],
+            userName 
           },
+          select:{
+            id:true
+          }
         });
-        if (checkUser) {
-          throw new Error("This username/email is already taken.");
+        if (checkUserName) {
+          return {
+            ok: false,
+            // error: "This username is already taken.",
+            errorCode: "USERNAME",
+          }
+        }
+        const checkEmail = await client.user.findUnique({
+          where: {
+            email,
+          },
+          select:{
+            id:true
+          }
+        });
+        if (checkEmail) {
+          return {
+            ok: false,
+            // error: "This email is already taken.",
+            errorCode: "EMAIL",
+          }
         }
         const uglyPassword = await bcrypt.hash(password, 10);
         await client.user.create({
@@ -31,13 +53,13 @@ const resolverFn: Resolvers = {
             id:true,
           }
         });
-
         return { ok: true };
 
       } catch (e) {
         return {
-          ok: true,
-          error: "Cannot create account.",
+          ok: false,
+          // error: "Cannot create account.",
+          errorCode: "UNKNOWN",
         };
       }
     },

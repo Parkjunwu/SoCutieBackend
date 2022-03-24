@@ -1,84 +1,29 @@
-// require("dotenv").config();
-// import { ApolloServer } from "apollo-server-express";
-// import client from "./client";
-// import { typeDefs, resolvers } from "./schema";
-// import { getUser } from "./user/user.utils";
-// import * as express from "express";
-// import * as logger from "morgan";
-// import * as http from "http"
-
-// ////////////////////////////////////
-// // apollo 2.25.2 버전임. 변경해서 써라 //
-// ////////////////////////////////////
-
-// const PORT = process.env.PORT;
-// const apollo = new ApolloServer({
-//   resolvers,
-//   typeDefs,
-//   /////////여기 밑에 두개 지워라/////
-//   // playground:true,
-//   // introspection:true,
-//   ////////여기 위에 두개 지워라///////
-//   context: async (context) => {
-//     if(context.req){
-//       return {
-//         loggedInUser: await getUser(context.req.headers.token),
-//         client,
-//       };
-//     } else {
-//       const {connection:{context:{loggedInUser}}} = context
-//       return {loggedInUser}
-//     }
-//   },
-//   subscriptions:{
-//     onConnect: async({token}:{token:String}) => {
-//       if(!token) {
-//         throw new Error("You can't listen.")
-//       }
-//       return {
-//         loggedInUser: await getUser(token),
-//         // client,
-//       };
-//     }
-//     // onConnect: async({token}:{token?:String}) => {
-//     //   console.log(token);
-//     //   if(!token) {
-//     //     throw new Error("You can't listen.")
-//     //   }
-//     //   return {
-//     //     loggedInUser: await getUser(token),
-//     //     // client,
-//     //   };
-//     // }
-//   }
-// });
-
-// const app = express();
-// app.use(logger("tiny"));
-// app.use("/static", express.static("uploads"));
-// apollo.applyMiddleware({ app });
-// const httpServer = http.createServer(app);
-// apollo.installSubscriptionHandlers(httpServer);
-// httpServer.listen(PORT, () => {
-//   console.log(`🚀Server is running on http://localhost:${PORT} ✅`);
-// });
-
-
-
-
 import "dotenv/config";
 import morgan from "morgan";
 import { createServer } from "http";
-import { execute, subscribe } from "graphql";
-import { SubscriptionServer } from "subscriptions-transport-ws";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
 import { resolvers, typeDefs } from "./schema";
-import { ApolloServerPluginLandingPageGraphQLPlayground } from "apollo-server-core";
+import { ApolloServerPluginLandingPageGraphQLPlayground, ApolloServerPluginDrainHttpServer, ApolloServerPluginLandingPageDisabled } from "apollo-server-core";
 import { getUser } from "./user/user.utils";
 import client from "./client";
 import { graphqlUploadExpress } from "graphql-upload";
+import { WebSocketServer } from 'ws';
+import { useServer } from 'graphql-ws/lib/use/ws';
+
+
+// 얘네는 FCM notification 인데.. 일단 뺌
+// const admin = require("firebase-admin");
+
+// const serviceAccount = require("../basenotification-77020-firebase-adminsdk-ql1ua-e8c7541585.json");
+
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+//   // databaseURL: "https://basenotification-77020.firebaseio.com",
+// });
+
+
 
 (async function () {
   const app = express();
@@ -90,47 +35,68 @@ import { graphqlUploadExpress } from "graphql-upload";
     typeDefs,
     resolvers,
   });
+  
+  // 새로운 subscription 서버
+  const wsServer = new WebSocketServer({
+    server: httpServer,
+    path: '/graphql',
+  });
 
-  const subscriptionServer = SubscriptionServer.create(
-    { schema, execute, subscribe, 
-      async onConnect(connectionParams:any) {
-        if (connectionParams.token) {
-          const loggedInUser = await getUser(connectionParams.token);
-          return { loggedInUser };
-        }
-      }
+  // subscription 에서 토큰 받아서 context 설정하는 함수
+  const getDynamicContext = async (ctx, msg, args) => {
+  const token = ctx.connectionParams.token;
+    if (token) {
+      const loggedInUser = await getUser(token);
+      return { loggedInUser };
+    }
+    // Otherwise let our resolvers know we don't have a current user
+    return { loggedInUser: null };
+  };
+
+  // 얘가 subscription 에서 하는 애
+  const serverCleanup = useServer(
+    {
+      schema,
+      context: (ctx, msg, args) => {
+        return getDynamicContext(ctx, msg, args);
+      },
+      // onConnect: () => {
+      //   console.log("connect~~")
+      // },
+      // onDisconnect() {
+      //   console.log('Disconnected!');
+      // },
     },
-    { server: httpServer, path: '/graphql' },
-    
+    wsServer
   );
 
   const server = new ApolloServer({
     schema,
     context: async (context) => {
-    if(context.req){
-      return {
-        loggedInUser: await getUser(context.req.headers.token + ""),
-        client:client,
-      };
-    } 
-    // 이게 뭐지
-    // else {
-    //   const {connection:{context:{loggedInUser}}} = context
-    //   return {loggedInUser}
-    // }
-  },
+      if(context.req){
+        return {
+          loggedInUser: await getUser(context.req.headers.token + ""),
+          client:client,
+        };
+      }
+    },
     plugins: [
-      // 얘를 production 때 없애야 하나?
-      ApolloServerPluginLandingPageGraphQLPlayground,
+      // Playground, 얘를 production 때 없애야 하나?
+      process.env.NODE_ENV === 'production'
+      ? ApolloServerPluginLandingPageDisabled()
+      : ApolloServerPluginLandingPageGraphQLPlayground(),
+      // 뭔진 모르지만 subscription 신버전 필요한거
+      ApolloServerPluginDrainHttpServer({ httpServer }),
+      // Proper shutdown for the WebSocket server.
       {
         async serverWillStart() {
           return {
             async drainServer() {
-              subscriptionServer.close();
-            }
+              await serverCleanup.dispose();
+            },
           };
-        }
-      }
+        },
+      },
     ],
   });
   await server.start();

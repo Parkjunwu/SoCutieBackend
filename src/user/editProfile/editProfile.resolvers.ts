@@ -40,7 +40,7 @@ const resolverFn: Resolver = async (
   if (updatedUser.id) {
     return { ok: true };
   } else {
-    return { ok: false, error: "can't update profile" };
+    return { ok: false, error: "프로필 변경이 실패하였습니다. 지속적으로 같은 문제 발생 시 문의 주시면 감사드리겠습니다." };
   }
 };
 

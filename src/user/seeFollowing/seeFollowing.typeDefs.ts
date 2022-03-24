@@ -5,9 +5,9 @@ export default gql`
     ok: Boolean!
     error: String
     following: [User]
-    lastId: Int
+    cursorId: Int
   }
   type Query {
-    seeFollowing(id:Int!, lastId: Int): SeeFollowingResult!
+    seeFollowing(id:Int!, cursorId: Int): SeeFollowingResult!
   }
 `;

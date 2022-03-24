@@ -10,5 +10,6 @@ export default gql`
     updatedAt:String!
     isMine:Boolean!
     totalLikes:Int!
+    isLiked:Boolean
   }
 `

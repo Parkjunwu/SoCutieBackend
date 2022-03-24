@@ -5,6 +5,6 @@ export default gql`
   #   seeRoom(id:Int!):Room
   # }
   type Query {
-    seeRooms:[Room]
+    seeRooms(cursorId:Int):[Room]
   }
 `

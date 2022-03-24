@@ -1,23 +1,26 @@
 import { Resolver, Resolvers } from "../types";
 
-const userFn:Resolver = async({id},_,{client}) => {
-  const result = await client.message.findUnique({where:{id}}).user()
-  // client.message.findUnique({where:{id},select:{user:true}})
-  // console.log(result)
-  return result
-}
-const usersFn:Resolver = async({id},_,{client}) => client.user.findMany({
+
+const talkingToFn:Resolver = async({id},_,{client,loggedInUser}) => client.user.findFirst({
   where:{
     UserOnRoom:{
       some:{
         roomId:id
-      }
+      },
+    },
+    id:{
+      not:loggedInUser.id
     }
+  },
+  select:{
+    id:true,
+    userName:true,
+    avatar:true
   }
 })
 
-// const messagesFn:Resolver = async({id},_,{client}) => client.message.findMany({where:{roomId:id}, take:20});
-const messagesFn:Resolver = async({id},_,{client,loggedInUser}) => {
+
+const lastMessageFn:Resolver = async({id},_,{client,loggedInUser}) => {
   // 어차피 Room 을 받는 resolver 가 전부 protectResolver 라서 체크할 필요는 없을 거 같긴 한데 그래도.
   const userOnRoom = await client.userOnRoom.findUnique({
     where:{
@@ -30,11 +33,23 @@ const messagesFn:Resolver = async({id},_,{client,loggedInUser}) => {
   if(!userOnRoom) {
     return null;
   };
-  return await client.message.findMany({
+  return await client.message.findFirst({
     where:{
       roomId:id,
     },
-    take:20,
+    orderBy:{
+      createdAt:"desc",
+    },
+    // unreadTotal 이 있으면 상대방 거니까 user 를 안 받아도 될 거 같긴한데 일단 받음.
+    // include:{
+    //   user:{
+    //     select:{
+    //       id:true,
+    //       userName:true,
+    //       avatar:true
+    //     }
+    //   },
+    // },
   })
 }
 
@@ -55,12 +70,13 @@ const unreadTotalFn:Resolver = async({id},_,{client,loggedInUser}) => {
 
 
 const resolver:Resolvers = {
-  Message: {
-    user:userFn
-  },
+  // 얘 때문에 못받는 거였음.
+  // Message: {
+  //   user:userFn
+  // },
   Room: {
-    users:usersFn,
-    messages:messagesFn,
+    talkingTo:talkingToFn,
+    lastMessage:lastMessageFn,
     unreadTotal:unreadTotalFn,
   },
 }

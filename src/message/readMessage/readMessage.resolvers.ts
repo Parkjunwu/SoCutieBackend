@@ -5,21 +5,16 @@ const readMessageFn: Resolver = async(_,{id},{client,loggedInUser}) =>{
   const message = await client.message.count({
     where:{
       id,
-      userId:{
-        not:loggedInUser.id
-      },
       room:{
         UserOnRoom:{
           some:{
             userId:loggedInUser.id
           }
         }
-        // users:{
-        //   some:{
-        //     id:loggedInUser.id
-        //   }
-        // }
-      }
+      },
+      userId:{
+        not:loggedInUser.id
+      },
     },
   })
   if(!message) return {ok:false, error:"Message not found"}
