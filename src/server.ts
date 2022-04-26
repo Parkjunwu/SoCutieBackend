@@ -11,19 +11,19 @@ import client from "./client";
 import { graphqlUploadExpress } from "graphql-upload";
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/lib/use/ws';
+import { applicationDefault, initializeApp } from 'firebase-admin/app';
 
+// FCM
+initializeApp({
+  credential: applicationDefault(),
+});
 
-// 얘네는 FCM notification 인데.. 일단 뺌
-// const admin = require("firebase-admin");
-
-// const serviceAccount = require("../basenotification-77020-firebase-adminsdk-ql1ua-e8c7541585.json");
+// import admin from "firebase-admin";
+// const serviceAccount = require(process.env.GOOGLE_APPLICATION_CREDENTIALS);
 
 // admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-//   // databaseURL: "https://basenotification-77020.firebaseio.com",
+//     credential: admin.credential.cert(serviceAccount)
 // });
-
-
 
 (async function () {
   const app = express();

@@ -1,5 +1,6 @@
 import { Resolver, Resolvers } from "../../types";
 import { protectResolver } from "../../user/user.utils";
+import pubSubReadMessageNeedRoomIdAndUserId from "../readMessagePubSub";
 
 const readAllMessageFn: Resolver = async(_,{roomId},{client,loggedInUser}) =>{ 
   const room = await client.room.findFirst({
@@ -14,8 +15,10 @@ const readAllMessageFn: Resolver = async(_,{roomId},{client,loggedInUser}) =>{
     select:{
       id:true
     }
-  })
-  if(!room) return {ok:false, error:"room not found"}
+  });
+
+  if(!room) return {ok:false, error:"room not found"};
+
   await client.message.updateMany({
     where:{
       roomId,
@@ -24,9 +27,14 @@ const readAllMessageFn: Resolver = async(_,{roomId},{client,loggedInUser}) =>{
     data:{
       read:true,
     },
-  })
+  });
+
+  const userId = loggedInUser.id;
+  await pubSubReadMessageNeedRoomIdAndUserId(roomId,userId);
+
   return {ok:true}
 }
+// 둘만 있으니까 이렇게 안해도 되겠네.
 // client.message.updateMany({
 //   where:{
 //     roomId:id,

@@ -127,3 +127,6 @@ dist
 .pnp.*
 /build
 /changeList
+
+# FCM
+service-account-file.json

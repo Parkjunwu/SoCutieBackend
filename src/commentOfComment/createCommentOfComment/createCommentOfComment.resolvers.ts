@@ -5,15 +5,15 @@ import { protectResolver } from "../../user/user.utils";
 
 const createCommentOfCommentFn:Resolver = async(_,{commentId,payload},{client,loggedInUser}) => {
   if(!payload) return { ok:false,error:"Please write your comment" };
-  const ok = await client.comment.findUnique({
+  const okAndPostOwnerId = await client.comment.findUnique({
     where:{
       id:commentId
     },
     select:{
-      id:true
+      userId:true
     }
   });
-  if(!ok) return {ok:false,error:"No photo on there"}
+  if(!okAndPostOwnerId) return {ok:false,error:"No photo on there"}
   const newCommentOfComment = await client.commentOfComment.create({
     data:{
       payload,
@@ -32,14 +32,23 @@ const createCommentOfCommentFn:Resolver = async(_,{commentId,payload},{client,lo
       id:true,
       comment:{
         select:{
-          userId:true
+          userId:true,
+          postId:true,
         }
       }
     }
   });
 
+  const loggedInUserId = loggedInUser.id;
+  const subscribeUserId = newCommentOfComment.comment.userId;
+  const postId = newCommentOfComment.comment.postId;
+  const commentOfCommentId = newCommentOfComment.id;
+
   // 댓글 작성 후 notification, subscription
-  await pushNotificationNotUploadPost(client, "MY_COMMENT_GET_COMMENT", loggedInUser.id, newCommentOfComment.comment.userId);
+  // 댓글이 유저 본인꺼면 안보냄.
+  if(loggedInUserId !== okAndPostOwnerId.userId) {
+    await pushNotificationNotUploadPost(client, "MY_COMMENT_GET_COMMENT", loggedInUserId, subscribeUserId, {postId, commentId, commentOfCommentId});
+  }
   // if(result){    얘는 굳이 안해도 될듯? 어차피 쟤가 안되면 오류뜨고 안되지 않나?
   // try {
   //   // notification 전송

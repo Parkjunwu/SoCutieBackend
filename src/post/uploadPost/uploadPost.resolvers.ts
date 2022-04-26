@@ -68,9 +68,10 @@ const uploadPostFn: Resolver = async(_,{photoArr,caption,},{client,loggedInUser}
     }
   });
 
+  const postId = result.id;
 
   // 완료 후 notification 전송 + subscription pubsub 전송
-  await pushNotificationUploadPost(client, loggedInUser.id);
+  await pushNotificationUploadPost(client, loggedInUser.id, postId);
 
 
   return { ok:true, uploadedPost:result };

@@ -30,7 +30,7 @@ const followUserFn: Resolver = async (
   });
 
   // 팔로우 완료 후 notification, subscription
-  await pushNotificationNotUploadPost(client, "FOLLOW_ME", loggedInUser.id, id);
+  await pushNotificationNotUploadPost(client, "FOLLOW_ME", loggedInUser.id, id, {userId: loggedInUser.id});
   // try {
   //   const notification = await client.notification.create({
   //     data:{

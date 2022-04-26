@@ -6,7 +6,9 @@ export default gql`
     id:Int
     error:String
   }
-  # type IDMutationResponse implements MutationResponse {
-  #   id:Int
-  # }
+  interface CursorPagination {
+    cursorId:Int,
+    hasNextPage:Boolean,
+    error:String,
+  }
 `

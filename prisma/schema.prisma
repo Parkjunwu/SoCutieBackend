@@ -36,7 +36,8 @@ model User {
   // rooms                 Room[]
   // 관계로 대체
 
-
+  // push notification 위한 디바이스 토큰. 아직은 기기 하나만. @unique 로 해놔야 한기기에서 두사람의 알림을 받지 못할듯? 옵션으로 지정해서 유저가 알림 싫으면 안받도록. 로그아웃하면 삭제해야 하기도 하고.
+  deviceToken String? @unique
 
   UserOnRoom UserOnRoom[] //@relation() onDelete Cascade 얘를 room 에도 구현
 
@@ -177,9 +178,10 @@ model Message {
   id        Int      @id @default(autoincrement())
   payload   String
   // 방을 아예 나가면 혹은 유저 사라지면 어떻게 하지?
-  // onDelete > setNull, onUpdate >cascade, room 지우면.. 알아서 삭제되나?
-  user      User     @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  userId    Int
+  // onDelete > SetNull, onUpdate >cascade, room 지우면.. 알아서 삭제되나?
+  // setNull 했더니 유저 삭제가 아예 안됨. 어떻게 해야하나 그러면.
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  userId    Int?
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   roomId    Int
   read      Boolean  @default(false)
@@ -222,21 +224,25 @@ model UserOnRoom {
 
 // 알림 내용
 model Notification {
-  id              Int               @id @default(autoincrement())
+  id                 Int               @id @default(autoincrement())
   // 보낸 유저, 받는 유저 따로. 받는 유저는 없을 수도 있음
   // 근데 받는 유저는 굳이 연결 안하고 id 만 있어도 되겠네.
-  publishUser     User              @relation(fields: [publishUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  publishUser        User              @relation(fields: [publishUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   // , name: "publishUser" 이거도 뺌. 위에 user 에도 바꿔
   // 얘는 굳이 필요 없어
   // subscribeUser   User?             @relation(fields: [subscribeUserId], references: [id], name: "subscribeUser")
-  publishUserId   Int
+  publishUserId      Int
   // following 유저가 포스팅 한거는 받는 유저가 정해져 있지 않아. 글고 만약에 알림에 포스팅 사진, 내용 같이 보여줄거면 이미지, 내용 요소도 추가
-  subscribeUserId Int?
+  subscribeUserId    Int?
   // list                   UserNotificationList @relation(fields: [userNotificationListId], references: [id])
   // userNotificationListId Int
-  which           WhichNotification // @default(FollowingPost)
-  read            Boolean           @default(false)
-  createdAt       DateTime          @default(now())
+  which              WhichNotification // @default(FollowingPost)
+  read               Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+  postId             Int?
+  commentId          Int?
+  commentOfCommentId Int?
+  userId             Int?
   // updatedAt DateTime          @updatedAt
 }
 

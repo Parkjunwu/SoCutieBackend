@@ -22,12 +22,12 @@ export default gql`
     totalFollowers: Int!
     isFollowing: Boolean!
     isMe: Boolean!
-    # posts 는 pagination 으로 구현해야 할듯. 근데 그냥 posts 를 받아서
-    posts(
-      cursorId:Int
-    ):PostAndCursor
-    # posts:[Post]
+    # posts 는 따로 받음. getUserPosts 로
+    # posts(
+    #   cursorId:Int
+    # ):PostAndCursor
     rooms:[Room]
+    deviceToken:String
 
     blockUsers:[Int]
     createdAt: String!

@@ -34,17 +34,17 @@ const resolver: Resolvers = {
       });
       return Boolean(exist);
     },
-    posts: async({id},{cursorId},{client}) => {
-      const result = await client.post.findMany({
-        where:{
-          userId:id
-        },
-        take:10,
-        ...(cursorId && { skip:1 , cursor:cursorId})
-      });
-      console.log(result);
-      return { post:result, cursorId:result[result.length-1].id }
-    },
+    // posts: async({id},{cursorId},{client}) => {
+    //   const result = await client.post.findMany({
+    //     where:{
+    //       userId:id
+    //     },
+    //     take:4,
+    //     ...(cursorId && { skip:1 , cursor:cursorId})
+    //   });
+    //   console.log(result);
+    //   return { post:result, cursorId:result[result.length-1].id }
+    // },
 
     // room 도 만들어야 할듯??
   },

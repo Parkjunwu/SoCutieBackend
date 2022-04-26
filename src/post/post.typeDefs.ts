@@ -7,40 +7,14 @@ export default gql`
     likes:Int!
     caption:String
     file:[String]
-    # HashTag 는 관계로 나오니까 조심
-    # 근데 HashTag 를 받을 필요가 있나? 걍 화면에서 누르면 그 이름으로 찾으면 되는데
-    hashTags:[HashTag]
-    # pagination 구현해야함
-    comments:[Comment]
+    # 굳이 comment 가 필요하면 like 제일 많은 하나 가져오기. 근데 그런건 없을듯?
+    # comments:[Comment]
     createdAt: String!
     updatedAt: String!
     commentNumber:Int!
     isMine:Boolean!
     isLiked:Boolean!
   }
-  type hashTagPostsResult {
-    posts:[Post]
-    page:Int
-    cursorId:Int
-  }
-  type HashTag {
-    id:Int!
-    # posts:[Post]
-    # Post 는 관계로 나오니까 조심
-    posts(
-      page:Int
-      cursorId:Int
-    ):hashTagPostsResult
-    name:String!
-    createdAt: String!
-    updatedAt: String!
-    totalPosts:Int
-  }
-  type PostLike {
-    id:Int!
-    post:Post!
-    user:User!
-    createdAt: String!
-    updatedAt: String!
-  }
+
+# HashTag 는 post 만 받는 걸로 구현함. 따로 타입 만들진 않음.
 `

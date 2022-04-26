@@ -1,10 +1,9 @@
+import paginationErrorCheckNeedLogicAndQueryName from "../../paginationErrorCheckNeedLogicAndQueryName";
 import { Resolver, Resolvers } from "../../types";
 
-const seePostLikesFn:Resolver = async(_,{id,cursorId},{client}) => {
-  // 그리고 resolver 도 바꿔야 겠네.
-
-  // const a = await client.user.findMany({where:{likes:{some:{postId:id}}}})
-  const a = await client.user.findMany({
+const logicSeePostLikes: Resolver = async(_,{id,cursorId},{client}) => {
+  const take = 20;
+  const likeUsers = await client.user.findMany({
     where:{
       postLikes:{
         some:{
@@ -12,20 +11,41 @@ const seePostLikesFn:Resolver = async(_,{id,cursorId},{client}) => {
         }
       }
     },
-    take:15,
-    ...(cursorId && { cursor: cursorId, skip:1 })
+    take,
+    ...(cursorId && { cursor: { id: cursorId }, skip: 1 }),
+    select:{
+      id:true,
+      userName:true,
+      avatar:true,
+    },
   });
-  // const b = await client.postLike.findMany({where:{postId:id},select:{user:true}})
-  // const c = await client.post.findUnique({where:{id}}).likes({select:{user:true}})
-  // const d = (await client.post.findUnique({where:{id},select:{likes:{select:{user:true}}}})).likes
-  // console.log(a)
-  // console.log(b)
-  // console.log(c)
-  // const obj = b.map(obj=>obj.user)
-  // console.log(obj)
 
-  return a;
-  // return b.map(obj=>obj.user)
+  const likeUsersCount = likeUsers.length;
+
+  // 메세지 받은 개수가 한번에 가져올 갯수랑 달라. 그럼 마지막이라는 뜻. 다만 딱 한번에 가져올 갯수랑 맞아 떨어지면 다음에 가져올 게 없지만 그래도 있는 걸로 나옴.
+  const isHaveHaveNextPage = likeUsersCount === take;
+
+  if( isHaveHaveNextPage ){
+    const cursorId = likeUsers[likeUsersCount-1].id;
+    return {
+      cursorId,
+      hasNextPage:true,
+      likeUsers,
+    };
+  } else {
+    return {
+      hasNextPage:false,
+      likeUsers,
+    };
+  }
+};
+
+
+const seePostLikesFn:Resolver = async(_,{id,cursorId},{client}) => {
+  return paginationErrorCheckNeedLogicAndQueryName(
+    await logicSeePostLikes(_,{id,cursorId},{client},null),
+    "seePostLikes"
+  );
 }
 const resolver:Resolvers = {
   Query:{

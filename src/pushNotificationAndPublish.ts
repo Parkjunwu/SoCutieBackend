@@ -1,8 +1,17 @@
 import { PrismaClient } from "@prisma/client";
+import { sendManyPushNotification, sendSinglePushNotification } from "./fcmAppNotification";
+import { channel, getChannel } from "./getChannel";
+import getNotificationMessage from "./getNotificationMessage";
 import pubsub, { NEW_NOTIFICATION } from "./pubsub";
 
 
-export const pushNotificationUploadPost: (client:PrismaClient, loggedInUserId:number) => Promise<void> = async(client, loggedInUserId) =>{
+type UploadType = (
+  client: PrismaClient,
+  loggedInUserId: number,
+  postId: number
+) => Promise<void>
+
+export const pushNotificationUploadPost:UploadType = async(client, loggedInUserId, postId) =>{
   try {
     // 완료 후 notification 전송 + subscription pubsub 전송
     const notification = await client.notification.create({
@@ -12,7 +21,8 @@ export const pushNotificationUploadPost: (client:PrismaClient, loggedInUserId:nu
           connect:{
             id:loggedInUserId
           }
-        }
+        },
+        postId,
       },
       // include 안하면 안받아짐. 글고 몇개 안쓸 거니까 걔네만 받아
       include:{
@@ -24,7 +34,8 @@ export const pushNotificationUploadPost: (client:PrismaClient, loggedInUserId:nu
             avatar:true,
             followers:{
               select:{
-                id:true
+                id:true,
+                deviceToken:true,
               }
             },
           },
@@ -32,9 +43,18 @@ export const pushNotificationUploadPost: (client:PrismaClient, loggedInUserId:nu
       }
     });
     // console.log(JSON.stringify(notification));
-    // subscription 전송
-    await pubsub.publish(NEW_NOTIFICATION,{userNotificationUpdate:notification})
-    // await pubsub.publish(NEW_NOTIFICATION,{userNotificationUpdate:{...notification}})
+    if(notification.publishUser.followers.length !== 0) {
+      // 디바이스 push 알림 전송
+      const tokens = notification.publishUser.followers.map(user=>user.deviceToken);
+      const message = `${notification.publishUser.userName}  님이 새로운 게시물을 업로드 하였습니다.`;
+      const uploadChannel = channel.upload;
+      
+      sendManyPushNotification(tokens,message,uploadChannel);
+
+      // subscription 전송
+      await pubsub.publish(NEW_NOTIFICATION,{userNotificationUpdate:notification})
+      // await pubsub.publish(NEW_NOTIFICATION,{userNotificationUpdate:{...notification}})
+    }
   } catch (e) {
     console.log(e);
     console.log("notification, subscription 에서 문제 발생")
@@ -54,7 +74,22 @@ export const pushNotificationUploadPost: (client:PrismaClient, loggedInUserId:nu
 
 type which = "MY_POST_GET_LIKE" | "MY_POST_GET_COMMENT" | "MY_COMMENT_GET_LIKE" | "MY_COMMENT_GET_COMMENT" | "MY_COMMENT_OF_COMMENT_GET_LIKE" | "FOLLOW_ME"
 
-export const pushNotificationNotUploadPost: (client:PrismaClient, whichNotification:which, loggedInUserId:number, subscribeUserId:number) => Promise<void> = async(client, whichNotification, loggedInUserId, subscribeUserId) => {
+type RouteParam = {
+  postId?: number,
+  commentId?: number,
+  commentOfCommentId?: number,
+  userId?: number
+}
+
+type NotUploadType = (
+  client: PrismaClient,
+  whichNotification: which,
+  loggedInUserId: number,
+  subscribeUserId: number,
+  { postId, commentId, commentOfCommentId, userId }: RouteParam
+) => Promise<void>
+
+export const pushNotificationNotUploadPost: NotUploadType = async(client, whichNotification, loggedInUserId, subscribeUserId, {postId,commentId,commentOfCommentId,userId}) => {
   try {
     const notification = await client.notification.create({
       data:{
@@ -64,7 +99,11 @@ export const pushNotificationNotUploadPost: (client:PrismaClient, whichNotificat
             id:loggedInUserId
           }
         },
-        subscribeUserId
+        subscribeUserId,
+        ...( postId && { postId } ),
+        ...( commentId && { commentId } ),
+        ...( commentOfCommentId && { commentOfCommentId } ),
+        ...( userId && { userId } ),
       },
       //include 해야 유저 정보 pubsub 으로 보낼 수 있음.
       include: {
@@ -74,9 +113,26 @@ export const pushNotificationNotUploadPost: (client:PrismaClient, whichNotificat
             userName:true,
             avatar:true,
           }
-        },
+        }
       }
     });
+
+    const devicePushToken = await client.user.findUnique({
+      where:{
+        id:subscribeUserId
+      },
+      select:{
+        deviceToken:true,
+      },
+    });
+
+    // 디바이스 push 알림 전송
+    const token = devicePushToken.deviceToken;
+    const message = `${notification.publishUser.userName} 님이 ${getNotificationMessage(whichNotification)}`;
+    const channel = getChannel(whichNotification);
+    
+    sendSinglePushNotification(token,message,channel);
+
     // subscription 전송
     await pubsub.publish(NEW_NOTIFICATION,{userNotificationUpdate:notification});
     // await pubsub.publish(NEW_NOTIFICATION,{userNotificationUpdate:{...notification}})

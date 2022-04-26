@@ -46,14 +46,29 @@ const toggleCommentOfCommentLikeFn:Resolver = async(_,{id},{client,loggedInUser}
       select:{
         commentOfComment:{
           select:{
-            userId:true
+            userId:true,
+            comment:{
+              select:{
+                postId:true,
+              }
+            },
+            commentId:true,
           }
         }
       }
     });
 
+    const loggedInUserId = loggedInUser.id;
+    const subscribeUserId = result.commentOfComment.userId;
+    const postId = result.commentOfComment.comment.postId;
+    const commentId = result.commentOfComment.commentId;
+    const commentOfCommentId = id;
+
     // 좋아요 완료 후 notification, subscription
-    await pushNotificationNotUploadPost(client, "MY_POST_GET_LIKE", loggedInUser.id, result.commentOfComment.userId);
+    // 좋아요 한 사람이 본인이면 안보냄.
+    if(loggedInUserId !== subscribeUserId) {
+      await pushNotificationNotUploadPost(client, "MY_COMMENT_OF_COMMENT_GET_LIKE", loggedInUserId, subscribeUserId,{postId, commentId, commentOfCommentId});
+    }
     // if(result) {     // 이렇게 안해도 될듯
     // try {
     //   const notification = await client.notification.create({

@@ -1,14 +1,8 @@
 import { gql } from "apollo-server-express";
 
 export default gql`
-  # type UserNotificationList {
-  #   id:Int!
-  #   user:User!
-  #   notification:[Notification]
-  # }
   type Notification {
     id:Int!
-    # list:UserNotificationList!
     publishUser:User!
     publishUserId:Int!
     subscribeUserId:Int
@@ -16,6 +10,11 @@ export default gql`
     which:WhichNotification!
     read:Boolean!
     createdAt:String!
+    # 클릭 시 해당 컴포넌트 보여주기 위함
+    postId:Int
+    commentId:Int
+    commentOfCommentId:Int
+    userId:Int
   }
   enum WhichNotification {
     FOLLOWING_WRITE_POST

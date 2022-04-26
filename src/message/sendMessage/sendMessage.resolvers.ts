@@ -1,4 +1,6 @@
 
+import { sendSinglePushNotification } from "../../fcmAppNotification";
+import { channel } from "../../getChannel";
 import pubsub, { GET_MESSAGE, NEW_MESSAGE } from "../../pubsub";
 import { Resolver, Resolvers } from "../../types";
 import { protectResolver } from "../../user/user.utils";
@@ -18,6 +20,9 @@ const sendMessageFn: Resolver = async(_,{payload,userId,roomId},{client,loggedIn
   }
   
   let room = null;
+  // push 알림을 위한 deviceToken.
+  let receiversDeviceToken;
+  let receiversUserName;
 
   if(userId){
     const user = await client.user.findUnique({
@@ -26,6 +31,8 @@ const sendMessageFn: Resolver = async(_,{payload,userId,roomId},{client,loggedIn
       },
       select:{
         id:true,
+        deviceToken:true,
+        userName:true
       }
     })
     // UserOnRoom 는 무조건 유저가 한명이네. Room 에 UserOnRoom 를 두개 가지고 있는 거임.
@@ -37,6 +44,10 @@ const sendMessageFn: Resolver = async(_,{payload,userId,roomId},{client,loggedIn
     //   }
     // })
     if(!user) return {ok:false, error:"There is no user."};
+
+    receiversDeviceToken = user.deviceToken;
+    receiversUserName = user.userName;
+
     const alreadyRoomHave = await client.room.findFirst({
       where:{
         AND:[
@@ -97,7 +108,13 @@ const sendMessageFn: Resolver = async(_,{payload,userId,roomId},{client,loggedIn
         id:true,
         UserOnRoom:{
           select:{
-            userId:true
+            userId:true,
+            user:{
+              select:{
+                deviceToken:true,
+                userName:true,
+              }
+            }
           }
         }
       },
@@ -106,33 +123,77 @@ const sendMessageFn: Resolver = async(_,{payload,userId,roomId},{client,loggedIn
     if(!room) return {ok:false, error:"Room not found"};
 
     // 수신하는 유저 id 받음
-    const receiverUserId = getRoom.UserOnRoom.filter(useObj => useObj.userId !== loggedInUser.id)[0]
+    const receiverUser = getRoom.UserOnRoom.filter(useObj => useObj.userId !== loggedInUser.id)[0]
 
-    userId = receiverUserId.userId;
-  }
-  const messagenotbug = await client.message.create({
+    userId = receiverUser.userId;
+
+    receiversDeviceToken = receiverUser.user.deviceToken;
+    receiversUserName = receiverUser.user.userName;
+  };
+  const message = await client.message.create({
     data:{
       room:{
         connect:{
-          id:room?.id
+          id:room.id
         }
       },
       user:{
         connect:{
-          id:loggedInUser?.id
+          id:loggedInUser.id
         }
       },
       payload
     },
     // include user 해야함.
     include:{
-      user:true,
+      user:{
+        select:{
+          id:true,
+          userName:true,
+          avatar:true,
+        }
+      },
     },
   });
-  await pubsub.publish(NEW_MESSAGE,{roomUpdate:{...messagenotbug}});
-  // {userId} 객체로 안보내고 그냥 userId 를 보내니까 헷갈리지 않도록. 헷갈리면 나중에 변경.
-  await pubsub.publish(GET_MESSAGE,{justAlertThereIsNewMessage:userId});
-  return {ok:true,id:messagenotbug.id};
+  
+  // room updatedAt 를 바꿔줘서 rooms 조회시 최신에 뜨게
+  await client.room.update({
+    where:{
+      id:room.id
+    },
+    data:{
+      updatedAt:new Date()
+    }
+  });
+
+  
+
+  // 디바이스 push, subscription 날림. 오류나도 진행.
+  try {
+    await pubsub.publish(NEW_MESSAGE,{roomUpdate:{...message}});
+    // {userId} 객체로 안보내고 그냥 userId 를 보내니까 헷갈리지 않도록. 헷갈리면 나중에 변경.
+    await pubsub.publish(GET_MESSAGE,{justAlertThereIsNewMessage:userId});
+
+    // 디바이스 push 알림 전송
+    const messageChannel = channel.message;
+    const sendMessage = `${loggedInUser.userName} : ${payload}`
+    const obj = {
+      id:String(room.id),
+      opponentUserName:receiversUserName,
+    };
+    sendSinglePushNotification(receiversDeviceToken,sendMessage,messageChannel,obj);
+
+  } catch (e) {
+    console.log("sendMessage pubsub 에러 : "+e);
+  }
+
+  // roomId 를 인자로 받았을 때 (Room 에서 쿼리 날림) / userId 를 인자로 받았을 때 (Room 없는 상태에서 메세지 보냈을 때)
+  // 헷갈리면 아예 로직 전체를 roomId 들어왔을 때 / userId 들어왔을 때 로 나눠서 작성
+  if(roomId) {
+    return { ok:true, id:message.id };
+  } else {
+    return { ok:true, roomId:room.id, talkingTo:message.user };
+  }
 };
 
 const resolver: Resolvers = {

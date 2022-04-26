@@ -30,7 +30,7 @@ const resolver = {
                     id:roomUpdate.roomId,
                   },
                   select:{
-                    id:true
+                    id:true,
                   },
                 });
                 return Boolean(ok);
@@ -51,7 +51,12 @@ const resolver = {
             },
           },
           select:{
-            id:true
+            id:true,
+            // UserOnRoom:{
+            //   select:{
+            //     userId:true,
+            //   },
+            // },
           }
         })
         if(!room) {
@@ -60,8 +65,10 @@ const resolver = {
         try {
           return withFilter(
             () => pubsub.asyncIterator(NEW_MESSAGE),
-            ({roomUpdate},{id}) => {
-              return roomUpdate.roomId === id
+            ({roomUpdate},{id},{loggedInUser}) => {
+              // return roomUpdate.roomId === id 
+              // 위에는 내가 보낸 것도 받음. 근데 보낸거 캐시 구현을 못해서 위에걸로함.
+              return roomUpdate.roomId === id && roomUpdate.userId !== loggedInUser.id
             }
           )(parent, args, context,info)
         } catch (e) {

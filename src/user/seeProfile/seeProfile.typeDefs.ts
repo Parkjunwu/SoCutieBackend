@@ -1,9 +1,11 @@
 import { gql } from "apollo-server";
 
-// 얜 어디서 쓰이는거지??
-
 export default gql`
+  type SeeProfileResponse {
+    user:User
+    error:String
+  }
   type Query {
-    seeProfile(id:Int!): User
+    seeProfile(id:Int!): SeeProfileResponse!
   }
 `;

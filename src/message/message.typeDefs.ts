@@ -6,8 +6,8 @@ export default gql`
   type Message {
     id:Int!
     payload:String!
-    user:User!
-    userId:Int!
+    user:User
+    userId:Int
     room:Room!
     roomId:Int!
     read:Boolean!

@@ -5,15 +5,15 @@ import { protectResolver } from "../../user/user.utils";
 
 const createCommentFn:Resolver = async(_,{postId,payload},{client,loggedInUser}) => {
   if(!payload) return {ok:false,error:"Please write your comment"}
-  const ok = await client.post.findUnique({
+  const okAndPostOwnerId = await client.post.findUnique({
     where:{
       id:postId
     },
     select:{
-      id:true
+      userId:true
     }
   });
-  if(!ok) return {ok:false,error:"No photo on there"}
+  if(!okAndPostOwnerId) return {ok:false,error:"No photo on there"}
   const newComment = await client.comment.create({
     data:{
       payload,
@@ -32,15 +32,21 @@ const createCommentFn:Resolver = async(_,{postId,payload},{client,loggedInUser})
       id:true,
       post:{
         select:{
-          userId:true
+          userId:true,
         }
       }
     }
   });
 
+  const loggedInUserId = loggedInUser.id;
+  const subscribeUserId = newComment.post.userId;
+  const commentId = newComment.id;
 
   // 댓글 작성 후 notification, subscription
-  await pushNotificationNotUploadPost(client, "MY_POST_GET_COMMENT", loggedInUser.id, newComment.post.userId);
+  // 댓글이 유저 본인꺼면 안보냄.
+  if(loggedInUserId !== okAndPostOwnerId.userId) {
+    await pushNotificationNotUploadPost(client, "MY_POST_GET_COMMENT", loggedInUserId, subscribeUserId, {postId, commentId});
+  }
   // if(newComment){    얘는 굳이 안해도 될듯? 어차피 쟤가 안되면 오류뜨고 안되지 않나?
   // try {
   //   // notification 전송

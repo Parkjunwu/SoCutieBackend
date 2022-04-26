@@ -36,8 +36,12 @@ export default pubsub;
 // 유저간 메세지
 export const NEW_MESSAGE = "1"
 
-// Notification 알림
-export const NEW_NOTIFICATION = "2"
+// 메세지 읽음
+export const READ_MESSAGE = "2"
 
 // 그냥 메세지 받았다는 것만
 export const GET_MESSAGE = "3"
+
+// Notification 알림
+export const NEW_NOTIFICATION = "4"
+
