@@ -1,3 +1,3 @@
-# Instaclone
+# Socutie - Backend
 
-Instaclone Backend.
+Socutie Backend.
